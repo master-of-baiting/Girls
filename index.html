@@ -48,6 +48,11 @@
             margin-bottom: 30px;
             border: 1px solid var(--border-color);
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+            transition: box-shadow 0.3s ease;
+        }
+        
+        .vote-section:hover {
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.7);
         }
 
         .image-row {
@@ -73,13 +78,26 @@
             max-width: 100%;
             border-radius: 10px;
             cursor: pointer;
-            border: 2px solid transparent;
+            border: 3px solid transparent;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
         }
 
         .image-container.selected img {
             border-color: var(--accent-color);
             box-shadow: 0 0 15px var(--accent-color);
         }
+        
+        /* Style for when voting is disabled */
+        .voted .image-container {
+            cursor: default;
+            opacity: 0.6;
+        }
+        
+        .voted .image-container:hover {
+            transform: none;
+            opacity: 0.6;
+        }
+
 
         .vote-button {
             background-color: var(--accent-color);
@@ -87,6 +105,7 @@
             border: none;
             padding: 12px 25px;
             font-size: 1.1em;
+            font-weight: bold;
             border-radius: 8px;
             cursor: pointer;
             transition: background-color 0.3s ease, transform 0.3s ease;
@@ -109,10 +128,18 @@
             justify-content: space-around;
             margin-top: 20px;
             font-size: 1.2em;
+            color: var(--text-color);
         }
 
         .vote-counts div {
             flex: 1;
+        }
+        
+        .vote-counts span {
+            font-weight: bold;
+            color: var(--accent-color);
+            min-width: 20px;
+            display: inline-block;
         }
 
         .social-link {
@@ -148,11 +175,11 @@
                     <img src="https://via.placeholder.com/250x250/32CD32/FFFFFF?text=Image+3" alt="Image 3">
                 </div>
             </div>
-            <button class="vote-button" id="vote-btn-1" disabled>Vote</button>
+            <button class="vote-button" id="vote-btn-1" disabled>Select an Image to Vote</button>
             <div class="vote-counts" id="vote-counts-1">
-                <div>Votes: <span id="votes-1">...</span></div>
-                <div>Votes: <span id="votes-2">...</span></div>
-                <div>Votes: <span id="votes-3">...</span></div>
+                <div>Votes: <span id="votes-1">0</span></div>
+                <div>Votes: <span id="votes-2">0</span></div>
+                <div>Votes: <span id="votes-3">0</span></div>
             </div>
         </div>
 
@@ -163,6 +190,14 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+            // --- CONFIGURATION ---
+            // 1. Get a FREE API Key from https://jsonbin.io/
+            // 2. Create a new JSON bin with the content: { "image1": 0, "image2": 0, "image3": 0 }
+            // 3. Get the Bin ID from the URL (e.g., https://jsonbin.io/b/YOUR_BIN_ID)
+            const jsonBinMasterKey = 'PASTE_YOUR_JSONBIN_MASTER_KEY_HERE'; // REQUIRED: Replace with your JSONBin Master Key
+            const binId = 'PASTE_YOUR_BIN_ID_HERE'; // REQUIRED: Replace with your Bin ID
+            // --- END CONFIGURATION ---
+
             const voteSection = document.getElementById('vote-section-1');
             const imageContainers = voteSection.querySelectorAll('.image-container');
             const voteButton = document.getElementById('vote-btn-1');
@@ -172,87 +207,100 @@
                 document.getElementById('votes-3')
             ];
 
-            const jsonBinApiKey = '$2a$10$YourUniqueApiKeyHere'; // Replace with your actual JSONBin API Key
-            const binId = 'YourBinIdHere'; // Replace with your actual Bin ID
             const jsonBinUrl = `https://api.jsonbin.io/v3/b/${binId}`;
-
             let selectedImage = null;
             let currentVotes = { image1: 0, image2: 0, image3: 0 };
+            const VOTE_ID = 'voted-section-1'; // Local storage key
 
-            // Function to fetch the current vote counts
+            // Fetches the latest vote counts from the server
             async function getVotes() {
                 try {
-                    const response = await fetch(`${jsonBinUrl}/latest`);
-                    if (!response.ok) {
-                        if (response.status === 404) { // If the bin is empty for the first time
-                            return { image1: 0, image2: 0, image3: 0 };
-                        }
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                    }
+                    const response = await fetch(`${jsonBinUrl}/latest`, {
+                        headers: { 'X-Master-Key': jsonBinMasterKey }
+                    });
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    
                     const data = await response.json();
                     currentVotes = data.record;
                     updateVoteDisplay();
                 } catch (error) {
                     console.error("Error fetching votes:", error);
+                    // Display error or keep votes at 0
                 }
             }
 
-            // Function to update the vote counts
+            // Pushes the updated vote counts to the server
             async function updateVotes() {
                 try {
-                    const response = await fetch(jsonBinUrl, {
+                    await fetch(jsonBinUrl, {
                         method: 'PUT',
                         headers: {
                             'Content-Type': 'application/json',
-                            'X-Master-Key': jsonBinApiKey
+                            'X-Master-Key': jsonBinMasterKey
                         },
                         body: JSON.stringify(currentVotes)
                     });
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                    }
                 } catch (error) {
                     console.error("Error updating votes:", error);
                 }
             }
             
+            // Updates the numbers on the screen
             function updateVoteDisplay() {
-                voteSpans[0].textContent = currentVotes.image1;
-                voteSpans[1].textContent = currentVotes.image2;
-                voteSpans[2].textContent = currentVotes.image3;
+                voteSpans[0].textContent = currentVotes.image1 || 0;
+                voteSpans[1].textContent = currentVotes.image2 || 0;
+                voteSpans[2].textContent = currentVotes.image3 || 0;
             }
 
-            // Check if the user has already voted
-            if (localStorage.getItem('voted-section-1')) {
+            // Disables the voting interface
+            function disableVoting() {
+                localStorage.setItem(VOTE_ID, 'true');
+                voteSection.classList.add('voted');
                 voteButton.disabled = true;
-                voteButton.textContent = 'Already Voted';
+                voteButton.textContent = 'Thank You For Voting!';
+                imageContainers.forEach(c => c.classList.remove('selected'));
             }
 
+            // Check if the user has already voted on page load
+            if (localStorage.getItem(VOTE_ID)) {
+                disableVoting();
+            }
+
+            // Add click listeners to each image
             imageContainers.forEach(container => {
                 container.addEventListener('click', () => {
-                    if (localStorage.getItem('voted-section-1')) return;
+                    if (localStorage.getItem(VOTE_ID)) return; // Don't allow selection if already voted
 
                     imageContainers.forEach(c => c.classList.remove('selected'));
                     container.classList.add('selected');
                     selectedImage = container.dataset.image;
                     voteButton.disabled = false;
+                    voteButton.textContent = 'Vote';
                 });
             });
 
+            // Add click listener to the vote button
             voteButton.addEventListener('click', async () => {
-                if (selectedImage && !localStorage.getItem('voted-section-1')) {
-                    currentVotes[`image${selectedImage}`]++;
-                    await updateVotes();
-                    updateVoteDisplay();
-                    
-                    localStorage.setItem('voted-section-1', 'true');
-                    voteButton.disabled = true;
-                    voteButton.textContent = 'Thank You For Voting!';
-                    imageContainers.forEach(c => c.classList.remove('selected'));
-                }
+                if (!selectedImage || localStorage.getItem(VOTE_ID)) return;
+                
+                // --- FIX: Disable button immediately to prevent multiple clicks ---
+                voteButton.disabled = true;
+                voteButton.textContent = 'Voting...';
+
+                // Increment the vote for the selected image
+                currentVotes[`image${selectedImage}`]++;
+                
+                // Update the global vote count on the server
+                await updateVotes();
+                
+                // Update the display with the new count
+                updateVoteDisplay();
+                
+                // Permanently disable voting for this user on this section
+                disableVoting();
             });
 
-            // Initial fetch of votes
+            // Initial fetch of votes when the page loads
             getVotes();
         });
     </script>
