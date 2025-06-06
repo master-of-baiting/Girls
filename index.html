@@ -87,7 +87,6 @@
             box-shadow: 0 0 15px var(--accent-color);
         }
         
-        /* Style for when voting is disabled */
         .voted .image-container {
             cursor: default;
             opacity: 0.6;
@@ -166,13 +165,13 @@
         <div class="vote-section" id="vote-section-1">
             <div class="image-row">
                 <div class="image-container" data-image="1">
-                    <img src="https://via.placeholder.com/250x250/FF6347/FFFFFF?text=Image+1" alt="Image 1">
+                    <img src="https://www.svgrepo.com/show/508699/landscape-placeholder.svg" alt="Image 1">
                 </div>
                 <div class="image-container" data-image="2">
-                    <img src="https://via.placeholder.com/250x250/4682B4/FFFFFF?text=Image+2" alt="Image 2">
+                    <img src="https://www.svgrepo.com/show/508699/landscape-placeholder.svg" alt="Image 2">
                 </div>
                 <div class="image-container" data-image="3">
-                    <img src="https://via.placeholder.com/250x250/32CD32/FFFFFF?text=Image+3" alt="Image 3">
+                    <img src="https://www.svgrepo.com/show/508699/landscape-placeholder.svg" alt="Image 3">
                 </div>
             </div>
             <button class="vote-button" id="vote-btn-1" disabled>Select an Image to Vote</button>
@@ -191,11 +190,8 @@
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             // --- CONFIGURATION ---
-            // 1. Get a FREE API Key from https://jsonbin.io/
-            // 2. Create a new JSON bin with the content: { "image1": 0, "image2": 0, "image3": 0 }
-            // 3. Get the Bin ID from the URL (e.g., https://jsonbin.io/b/YOUR_BIN_ID)
-            const jsonBinMasterKey = 'PASTE_YOUR_JSONBIN_MASTER_KEY_HERE'; // REQUIRED: Replace with your JSONBin Master Key
-            const binId = 'PASTE_YOUR_BIN_ID_HERE'; // REQUIRED: Replace with your Bin ID
+            const jsonBinMasterKey = '$2a$10$/CIyTimBCnkx9zFkZqka4O01lAha1HL0u3KKwZgsJOKvNCuI2so6O'; // Your Master Key.
+            const binId = '6842f8578561e97a50205736'; // REQUIRED: Paste the Bin ID you created in Step 1.
             // --- END CONFIGURATION ---
 
             const voteSection = document.getElementById('vote-section-1');
@@ -210,12 +206,12 @@
             const jsonBinUrl = `https://api.jsonbin.io/v3/b/${binId}`;
             let selectedImage = null;
             let currentVotes = { image1: 0, image2: 0, image3: 0 };
-            const VOTE_ID = 'voted-section-1'; // Local storage key
+            const VOTE_ID = 'voted-section-1'; 
 
-            // Fetches the latest vote counts from the server
             async function getVotes() {
                 try {
                     const response = await fetch(`${jsonBinUrl}/latest`, {
+                        method: 'GET',
                         headers: { 'X-Master-Key': jsonBinMasterKey }
                     });
                     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
@@ -225,11 +221,9 @@
                     updateVoteDisplay();
                 } catch (error) {
                     console.error("Error fetching votes:", error);
-                    // Display error or keep votes at 0
                 }
             }
 
-            // Pushes the updated vote counts to the server
             async function updateVotes() {
                 try {
                     await fetch(jsonBinUrl, {
@@ -245,14 +239,12 @@
                 }
             }
             
-            // Updates the numbers on the screen
             function updateVoteDisplay() {
                 voteSpans[0].textContent = currentVotes.image1 || 0;
                 voteSpans[1].textContent = currentVotes.image2 || 0;
                 voteSpans[2].textContent = currentVotes.image3 || 0;
             }
 
-            // Disables the voting interface
             function disableVoting() {
                 localStorage.setItem(VOTE_ID, 'true');
                 voteSection.classList.add('voted');
@@ -261,15 +253,13 @@
                 imageContainers.forEach(c => c.classList.remove('selected'));
             }
 
-            // Check if the user has already voted on page load
             if (localStorage.getItem(VOTE_ID)) {
                 disableVoting();
             }
 
-            // Add click listeners to each image
             imageContainers.forEach(container => {
                 container.addEventListener('click', () => {
-                    if (localStorage.getItem(VOTE_ID)) return; // Don't allow selection if already voted
+                    if (localStorage.getItem(VOTE_ID)) return;
 
                     imageContainers.forEach(c => c.classList.remove('selected'));
                     container.classList.add('selected');
@@ -279,28 +269,21 @@
                 });
             });
 
-            // Add click listener to the vote button
             voteButton.addEventListener('click', async () => {
                 if (!selectedImage || localStorage.getItem(VOTE_ID)) return;
                 
-                // --- FIX: Disable button immediately to prevent multiple clicks ---
                 voteButton.disabled = true;
                 voteButton.textContent = 'Voting...';
 
-                // Increment the vote for the selected image
                 currentVotes[`image${selectedImage}`]++;
                 
-                // Update the global vote count on the server
                 await updateVotes();
                 
-                // Update the display with the new count
                 updateVoteDisplay();
                 
-                // Permanently disable voting for this user on this section
                 disableVoting();
             });
 
-            // Initial fetch of votes when the page loads
             getVotes();
         });
     </script>
